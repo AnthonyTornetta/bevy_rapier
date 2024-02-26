@@ -52,7 +52,6 @@ pub(crate) fn transform_to_iso(transform: &Transform, physics_scale: Real) -> Is
 #[cfg(feature = "dim3")]
 mod tests {
     use super::*;
-    use bevy::prelude::Transform;
 
     #[test]
     fn convert_back_to_equal_transform() {

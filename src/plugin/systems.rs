@@ -18,7 +18,7 @@ use crate::plugin::{RapierConfiguration, RapierContext};
 use crate::prelude::{
     AdditionalSolverIterations, BevyPhysicsHooks, BevyPhysicsHooksAdapter, CollidingEntities,
     KinematicCharacterController, KinematicCharacterControllerOutput, MassModifiedEvent,
-    PhysicsWorld, RapierWorld, Real, RigidBodyDisabled, WorldId, DEFAULT_WORLD_ID,
+    PhysicsWorld, RapierWorld, Real, RigidBodyDisabled, DEFAULT_WORLD_ID,
 };
 use crate::utils;
 use bevy::ecs::system::{StaticSystemParam, SystemParamItem};
@@ -379,97 +379,91 @@ pub fn apply_collider_user_changes(
     }
 }
 
-// Changes the world something is in.
-// This will also change the children of that entity to reflect the new world.
-fn recursively_apply_world_update(
-    children_query: &Query<&Children>,
-    physics_world_query: &Query<(Entity, Ref<PhysicsWorld>)>,
-    context: &RapierContext,
-    entity: Entity,
-    commands: &mut Commands,
-    new_world: WorldId,
+/// Flags the entity to have its physics updated to reflect new world
+///
+/// Also recursively bubbles down world changes to children & flags them to apply any needed physics changes
+pub fn on_change_world(
+    q_changed_worlds: Query<(Entity, &PhysicsWorld), Changed<PhysicsWorld>>,
+    q_children: Query<&Children>,
+    q_physics_world: Query<&PhysicsWorld>,
+    mut commands: Commands,
 ) {
-    if let Ok((_, physics_world)) = physics_world_query.get(entity) {
-        if physics_world.world_id != new_world {
-            // Needs to insert instead of changing a mut physics_world because
-            // the Ref<PhysicsWorld> requires physics_world to not be mut.
-            commands.entity(entity).insert(PhysicsWorld {
-                world_id: new_world,
-            });
-        }
+    for (entity, new_physics_world) in &q_changed_worlds {
+        remove_old_physics(entity, &mut commands);
+        bubble_down_world_change(
+            &mut commands,
+            entity,
+            &q_children,
+            *new_physics_world,
+            &q_physics_world,
+        );
+    }
+}
 
-        // This currently loops through every world to find it, which
-        // isn't the most efficient but gets the job done.
-        if context
-            .get_world(new_world)
-            .map(|world| world.entity2body.contains_key(&entity))
+fn bubble_down_world_change(
+    commands: &mut Commands,
+    entity: Entity,
+    q_children: &Query<&Children>,
+    new_physics_world: PhysicsWorld,
+    q_physics_world: &Query<&PhysicsWorld>,
+) {
+    let Ok(children) = q_children.get(entity) else {
+        return;
+    };
+
+    children.iter().for_each(|&child| {
+        if q_physics_world
+            .get(child)
+            .map(|x| *x == new_physics_world)
             .unwrap_or(false)
         {
-            // The value of the component did not change, no need to bubble it down or remove it from the world
             return;
         }
 
-        // This entity will be picked up by the "init_colliders" systems and added
-        // to the correct world if it is missing these components.
-        commands
-            .entity(entity)
-            .remove::<RapierColliderHandle>()
-            .remove::<RapierRigidBodyHandle>()
-            .remove::<RapierMultibodyJointHandle>()
-            .remove::<RapierImpulseJointHandle>();
-    } else {
-        commands
-            .entity(entity)
-            .insert(PhysicsWorld {
-                world_id: new_world,
-            })
-            .remove::<RapierColliderHandle>()
-            .remove::<RapierRigidBodyHandle>()
-            .remove::<RapierMultibodyJointHandle>()
-            .remove::<RapierImpulseJointHandle>();
-    }
+        remove_old_physics(child, commands);
+        commands.entity(child).insert(new_physics_world);
 
-    // Carries down world changes to children
-    if let Ok(children) = children_query.get(entity) {
-        for child in children.iter() {
-            recursively_apply_world_update(
-                children_query,
-                physics_world_query,
-                context,
-                *child,
-                commands,
-                new_world,
-            );
+        bubble_down_world_change(
+            commands,
+            child,
+            q_children,
+            new_physics_world,
+            q_physics_world,
+        );
+    });
+}
+
+/// If an entity is turned into the child of something with a physics world, the child should become a part of that physics world
+///
+/// If this fails to happen, weirdness will ensue.
+pub fn on_add_entity_with_parent(
+    q_add_entity_without_parent: Query<(Entity, &Parent), Changed<Parent>>,
+    q_parent: Query<&Parent>,
+    q_physics_world: Query<&PhysicsWorld>,
+    mut commands: Commands,
+) {
+    for (ent, parent) in &q_add_entity_without_parent {
+        let mut parent = Some(parent.get());
+        while let Some(parent_entity) = parent {
+            if let Ok(pw) = q_physics_world.get(parent_entity) {
+                commands.entity(ent).insert(*pw);
+                remove_old_physics(ent, &mut commands);
+                break;
+            }
+
+            parent = q_parent.get(parent_entity).ok().map(|x| x.get());
         }
     }
 }
 
-/// Whenever an entity has its PhysicsWorld component changed, this
-/// system places it in the new world & removes it from the old.
-///
-/// This does NOT add the entity to the new world, only signals that
-/// it needs changed. Later down the line, systems will pick up this
-/// entity that needs added & do everything necessary to add it.
-///
-/// This system will carry this change down to the children of that entity.
-pub fn apply_changing_worlds(
-    mut commands: Commands,
-    physics_world_query: Query<(Entity, Ref<PhysicsWorld>)>,
-    children_query: Query<&Children>,
-    context: Res<RapierContext>,
-) {
-    for (entity, physics_world) in physics_world_query.iter() {
-        if physics_world.is_added() || physics_world.is_changed() {
-            recursively_apply_world_update(
-                &children_query,
-                &physics_world_query,
-                &context,
-                entity,
-                &mut commands,
-                physics_world.world_id,
-            );
-        }
-    }
+/// Flags the entity to have its old physics removed
+fn remove_old_physics(entity: Entity, commands: &mut Commands) {
+    commands
+        .entity(entity)
+        .remove::<RapierColliderHandle>()
+        .remove::<RapierRigidBodyHandle>()
+        .remove::<RapierMultibodyJointHandle>()
+        .remove::<RapierImpulseJointHandle>();
 }
 
 /// System responsible for applying changes the user made to a rigid-body-related component.
