@@ -1,6 +1,5 @@
 use bevy::prelude::Resource;
 
-use crate::math::Vect;
 
 /// Difference between simulation and rendering time
 #[derive(Resource, Default)]
@@ -52,8 +51,6 @@ pub enum TimestepMode {
 #[derive(Resource, Copy, Clone, Debug)]
 /// A resource for specifying configuration information for the physics simulation
 pub struct RapierConfiguration {
-    /// Specifying the gravity of the physics simulation.
-    pub gravity: Vect,
     /// Specifies if the physics simulation is active and update the physics world.
     pub physics_pipeline_active: bool,
     /// Specifies if the query pipeline is active and update the query pipeline.
@@ -68,17 +65,25 @@ pub struct RapierConfiguration {
     /// discretized into a convex polyhedron, using `scaled_shape_subdivision` as the number of subdivisions
     /// along each spherical coordinates angle.
     pub scaled_shape_subdivision: u32,
-    /// Specifies if backend sync should always accept tranform changes, which may be from the writeback stage.
+    /// Specifies if backend sync should always accept transform changes, which may be from the writeback stage.
     pub force_update_from_transform_changes: bool,
 }
 
 impl Default for RapierConfiguration {
     fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RapierConfiguration {
+    /// Configures rapier with the specified length unit.
+    ///
+    /// See the documentation of [`IntegrationParameters::length_unit`] for additional details
+    /// on that argument.
+    ///
+    /// The default gravity is automatically scaled by that length unit.
+    pub fn new() -> Self {
         Self {
-            #[cfg(feature = "dim2")]
-            gravity: Vect::Y * -9.81 * 10.0,
-            #[cfg(feature = "dim3")]
-            gravity: Vect::Y * -9.81,
             physics_pipeline_active: true,
             query_pipeline_active: true,
             timestep_mode: TimestepMode::Variable {
