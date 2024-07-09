@@ -122,6 +122,7 @@ where
                 systems::apply_rigid_body_user_changes,
                 systems::apply_joint_user_changes,
                 systems::apply_initial_rigid_body_impulses,
+                systems::sync_vel,
             )
                 .chain()
                 .into_configs(),
