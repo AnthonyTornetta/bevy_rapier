@@ -305,6 +305,7 @@ pub fn insert_default_world(
         RapierContextInitialization::NoAutomaticRapierContext => {}
         RapierContextInitialization::InitializeDefaultRapierContext { length_unit } => {
             commands.spawn((
+                Name::new("Rapier Context"),
                 RapierContext {
                     integration_parameters: IntegrationParameters {
                         length_unit: *length_unit,
@@ -404,7 +405,7 @@ mod test {
             app.update();
             // arbitrary hardcoded amount to run the simulation for a few frames.
             // This test uses stepping so the actual amount of frames is this `number / breakpoints`
-            for i in 0..20 {
+            for _ in 0..20 {
                 let world = app.world_mut();
                 let stepping = world.resource_mut::<Stepping>();
                 if let Some(cursor) = &stepping.cursor() {
