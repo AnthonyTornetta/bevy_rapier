@@ -6,48 +6,30 @@
 
 - Update from rapier `0.21` to rapier `0.22`,
   see [rapier's changelog](https://github.com/dimforge/rapier/blob/master/CHANGELOG.md).
+- update bevy to 0.15
+- `RapierContext`, `RapierConfiguration` and `RenderToSimulationTime` are now a `Component` instead of resources.
+  - Rapier now supports multiple independent physics worlds, see example `multi_world3` for usage details.
+  - Migration guide: - `ResMut<mut RapierContext>` -> `WriteDefaultRapierContext` - `Res<RapierContext>` -> `ReadDefaultRapierContext` - Access to `RapierConfiguration` and `RenderToSimulationTime` should query for it
+    on the responsible entity owning the `RenderContext`.
+  - If you are building a library on top of `bevy_rapier` and would want to support multiple independent physics worlds too,
+    you can check out the details of [#545](https://github.com/dimforge/bevy_rapier/pull/545)
+    to get more context and information.
+- `colliders_with_aabb_intersecting_aabb` now takes `bevy::math::bounding::Aabb3d` (or `[..]::Aabb2d` in 2D) as parameter.
+  - it is now accessible with `headless` feature enabled.
 
 ### Fix
 
 - Fix a crash when using `TimestepMode::Interpolated` and removing colliders
-during a frame which would not run a simulation step.
+  during a frame which would not run a simulation step.
 
 ### Added
 
 - Added a `TriMeshFlags` parameter for `ComputedColliderShape`,
-its default value is `TriMeshFlags::MERGE_DUPLICATE_VERTICES`,
-which was its hardcoded behaviour.
-- Added a way to configure which colliders should be debug rendered: `global` parameter for both 
+  its default value is `TriMeshFlags::MERGE_DUPLICATE_VERTICES`,
+  which was its hardcoded behaviour.
+- Added a way to configure which colliders should be debug rendered: `global` parameter for both
   `RapierDebugColliderPlugin` and `DebugRenderContext`, as well as individual collider setup via
   a `ColliderDebug` component.
-
-### Modified
-
-- `RapierContext`, `RapierConfiguration` and `RenderToSimulationTime` are now a `Component` instead of resources.
-  - Rapier now supports multiple independent physics worlds, see example `multi_world3` for usage details.
-  - Migration guide:
-    - `ResMut<mut RapierContext>` -> `WriteDefaultRapierContext`
-    - `Res<RapierContext>` -> `ReadDefaultRapierContext`
-    - Access to `RapierConfiguration` and `RenderToSimulationTime` should query for it
-on the responsible entity owning the `RenderContext`.
-  - If you are building a library on top of `bevy_rapier` and would want to support multiple independent physics worlds too,
-you can check out the details of [#545](https://github.com/dimforge/bevy_rapier/pull/545)
-to get more context and information.
-- `colliders_with_aabb_intersecting_aabb` now takes `bevy::math::bounding::Aabb3d` (or `[..]::Aabb2d` in 2D) as parameter.
-  - it is now accessible with `headless` feature enabled.
-
-### Modified
-
-- `RapierContext`, `RapierConfiguration` and `RenderToSimulationTime` are now a `Component`
-  - Rapier now supports multiple worlds, see example `multi_world3` for usage details.
-  - Migration guide:
-    - `ResMut<mut RapierContext>` -> `DefaultRapierContextAccessMut`
-    - `Res<RapierContext>` -> `DefaultRapierContextAccess`
-    - Access to `RapierConfiguration` and `RenderToSimulationTime` should query for it
-on the responsible entity owning the `RenderContext`.
-  - If you are building a library on top of `bevy_rapier` and would want to support multiple worlds too,
-you can check out the details of [#545](https://github.com/dimforge/bevy_rapier/pull/545)
-to get more context and information.
 
 ## v0.27.0 (07 July 2024)
 
@@ -63,7 +45,7 @@ and new features. Please have a look at the
 - Renamed `has_any_active_contacts` to `has_any_active_contact` for better consistency with rapier.
 - `ColliderDebugColor`'s property is now a `bevy::color::Hsla`.
 - `ImpulseJoint::data` and `MultibodyJoint::data` are now a more detailed enum `TypedJoint` instead of a `GenericJoint`.
-You can still access its inner `GenericJoint` with `.as_ref()` or `as_mut()`.
+  You can still access its inner `GenericJoint` with `.as_ref()` or `as_mut()`.
 - `data` fields from all joints (`FixedJoint`, …) are now public, and their getters removed.
 
 ### Added
@@ -192,7 +174,7 @@ performance of the other parts of the simulation.
 - Fix typo by renaming `CuboidViewMut::sed_half_extents` to `set_half_extents`.
 - Properly scale parented collider’s offset based on changes on its `ColliderScale`.
 
-## 0.21.0  (07 March 2023)
+## 0.21.0 (07 March 2023)
 
 ### Modified
 
@@ -269,13 +251,13 @@ performance of the other parts of the simulation.
 ### Added
 
 - Add a **kinematic character controller** implementation. This feature is accessible in two different ways:
-    1. The first approach is to insert the `KinematicCharacterController` component to an entity. If the
-       `KinematicCharacterController::custom_shape` field is set, then this shape is used for the character control.
-       If this field is `None` then the `Collider` attached to the same entity as the character controller is used.
-       The character controller will be automatically updated when the `KinematicCharacterController::movement` is set.
-       The result position is written to the `Transform` of the character controller’s entity.
-    2. The second, lower level, approach, is to call `RapierContext::move_shape` to compute the possible movement
-       of a shape, taking obstacle and sliding into account.
+  1. The first approach is to insert the `KinematicCharacterController` component to an entity. If the
+     `KinematicCharacterController::custom_shape` field is set, then this shape is used for the character control.
+     If this field is `None` then the `Collider` attached to the same entity as the character controller is used.
+     The character controller will be automatically updated when the `KinematicCharacterController::movement` is set.
+     The result position is written to the `Transform` of the character controller’s entity.
+  2. The second, lower level, approach, is to call `RapierContext::move_shape` to compute the possible movement
+     of a shape, taking obstacle and sliding into account.
 - Add implementations of `Add`, `AddAssign`, `Sub`, `SubAssign` to `ExternalForce` and `ExternalImpulse`.
 - Add `ExternalForce::at_point` and `ExternalImpulse::at_point` to apply a force/impulse at a specific point
   of a rigid-body.
@@ -560,7 +542,6 @@ includes lots of new features. Refer to the Rapier changelogs for details.
 ### Changed
 
 - Rapier configuration
-    - Replaced `Gravity` and `RapierPhysicsScale` resources with a unique `RapierConfiguration` resource.
-    - Added an `physics_pipeline_active` attribute to `RapierConfiguration` allowing to pause the physic simulation.
-    - Added a `query_pipeline_active` attribute to `RapierConfiguration` allowing to pause the query pipeline update.
-
+  - Replaced `Gravity` and `RapierPhysicsScale` resources with a unique `RapierConfiguration` resource.
+  - Added an `physics_pipeline_active` attribute to `RapierConfiguration` allowing to pause the physic simulation.
+  - Added a `query_pipeline_active` attribute to `RapierConfiguration` allowing to pause the query pipeline update.
