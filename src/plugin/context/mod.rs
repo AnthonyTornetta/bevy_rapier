@@ -29,7 +29,7 @@ use crate::prelude::{ImpulseJoint, MultibodyJoint, RevoluteJoint, TypedJoint};
 
 /// Marker component for to access the default [`RapierContext`].
 ///
-/// This is used by [`systemparams::DefaultRapierContextAccess`] and other default accesses
+/// This is used by [`systemparams::ReadDefaultRapierContext`] and other default accesses
 /// to help with getting a reference to the correct RapierContext.
 ///
 /// If you're making a library, you might be interested in [`RapierContextEntityLink`]
@@ -50,7 +50,6 @@ pub struct RapierContext {
     /// The island manager, which detects what object is sleeping
     /// (not moving much) to reduce computations.
     pub islands: IslandManager,
-    // FIXME: This should be serialized but a bug prevents it
     /// The broad-phase, which detects potential contact pairs.
     pub broad_phase: DefaultBroadPhase,
     /// The narrow-phase, which computes contact points, tests intersections,
@@ -367,7 +366,7 @@ impl RapierContext {
             }
         }
         if let Some(mut event_queue) = event_queue {
-            // SAFETY: event_queue and its inner locksare only accessed from
+            // NOTE: event_queue and its inner locks are only accessed from
             // within `self.pipeline.step` called above, so we can unwrap here safely.
             self.collision_events_to_send =
                 std::mem::take(event_queue.collision_events.get_mut().unwrap());
@@ -389,14 +388,13 @@ impl RapierContext {
         for collision_event in self.collision_events_to_send.drain(..) {
             collision_event_writer.send(collision_event);
         }
-
         for contact_force_event in self.contact_force_events_to_send.drain(..) {
             contact_force_event_writer.send(contact_force_event);
         }
     }
 
     /// This method makes sure that the rigid-body positions have been propagated to
-    /// their attached colliders, without having to perform a srimulation step.
+    /// their attached colliders, without having to perform a simulation step.
     pub fn propagate_modified_body_positions_to_colliders(&mut self) {
         self.bodies
             .propagate_modified_body_positions_to_colliders(&mut self.colliders);
@@ -774,21 +772,15 @@ impl RapierContext {
     }
 
     /// Finds all entities of all the colliders with an Aabb intersecting the given Aabb.
-    #[cfg(not(feature = "headless"))]
     pub fn colliders_with_aabb_intersecting_aabb(
         &self,
-        aabb: bevy::render::primitives::Aabb,
+        #[cfg(feature = "dim2")] aabb: bevy::math::bounding::Aabb2d,
+        #[cfg(feature = "dim3")] aabb: bevy::math::bounding::Aabb3d,
         mut callback: impl FnMut(Entity) -> bool,
     ) {
-        #[cfg(feature = "dim2")]
         let scaled_aabb = rapier::prelude::Aabb {
-            mins: aabb.min().xy().into(),
-            maxs: aabb.max().xy().into(),
-        };
-        #[cfg(feature = "dim3")]
-        let scaled_aabb = rapier::prelude::Aabb {
-            mins: aabb.min().into(),
-            maxs: aabb.max().into(),
+            mins: aabb.min.into(),
+            maxs: aabb.max.into(),
         };
         #[allow(clippy::redundant_closure)]
         // False-positive, we can't move callback, closure becomes `FnOnce`

@@ -2,9 +2,7 @@ use crate::dynamics::ReadMassProperties;
 use crate::geometry::Collider;
 use crate::plugin::context::systemparams::RapierEntity;
 use crate::plugin::context::RapierContextEntityLink;
-use crate::plugin::{
-    DefaultRapierContext, RapierConfiguration, RapierContext, RapierContextAccessMut,
-};
+use crate::plugin::{DefaultRapierContext, RapierConfiguration, RapierContext, WriteRapierContext};
 use crate::prelude::{
     ActiveCollisionTypes, ActiveEvents, ActiveHooks, ColliderDisabled, ColliderMassProperties,
     ColliderScale, CollidingEntities, CollisionEvent, CollisionGroups, ContactForceEventThreshold,
@@ -85,7 +83,7 @@ pub fn apply_scale(
 
 /// System responsible for applying changes the user made to a collider-related component.
 pub fn apply_collider_user_changes(
-    mut context: RapierContextAccessMut,
+    mut context: WriteRapierContext,
     config: Query<&RapierConfiguration>,
     (changed_collider_transforms, parent_query, transform_query): (
         Query<
@@ -155,22 +153,10 @@ pub fn apply_collider_user_changes(
             );
 
             if let Some(co) = context.colliders.get_mut(handle.0) {
-                let new_pos = utils::transform_to_iso(&collider_position);
-
-                if co
-                    .position_wrt_parent()
-                    .map(|pos| *pos != new_pos)
-                    .unwrap_or(true)
-                {
-                    co.set_position_wrt_parent(new_pos);
-                }
+                co.set_position_wrt_parent(utils::transform_to_iso(&collider_position));
             }
         } else if let Some(co) = context.colliders.get_mut(handle.0) {
-            let new_pos = utils::transform_to_iso(&transform.compute_transform());
-
-            if *co.position() != new_pos {
-                co.set_position(utils::transform_to_iso(&transform.compute_transform()));
-            }
+            co.set_position(utils::transform_to_iso(&transform.compute_transform()))
         }
     }
 
@@ -355,7 +341,7 @@ pub(crate) fn collider_offset(
 pub fn init_colliders(
     mut commands: Commands,
     config: Query<&RapierConfiguration>,
-    mut context_access: RapierContextAccessMut,
+    mut context_access: WriteRapierContext,
     default_context_access: Query<Entity, With<DefaultRapierContext>>,
     colliders: Query<(ColliderComponents, Option<&GlobalTransform>), Without<RapierColliderHandle>>,
     mut rigid_body_mprops: Query<&mut ReadMassProperties>,
@@ -587,6 +573,7 @@ pub fn update_colliding_entities(
 }
 
 #[cfg(test)]
+#[allow(missing_docs)]
 pub mod test {
     #[test]
     #[cfg(all(feature = "dim3", feature = "async-collider"))]

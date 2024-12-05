@@ -17,6 +17,9 @@ edition = "2021"
 path = "../src/lib.rs"
 required-features = ["dim3"]
 
+[lints]
+workspace = true
+
 [features]
 default = ["dim3", "async-collider", "debug-render-3d"]
 dim3 = []
@@ -35,6 +38,8 @@ debug-render-3d = [
     "rapier3d/debug-render",
     "bevy/bevy_asset",
 ]
+rapier-debug-render = ["rapier3d/debug-render"]
+
 parallel = ["rapier3d/parallel"]
 simd-stable = ["rapier3d/simd-stable"]
 simd-nightly = ["rapier3d/simd-nightly"]
@@ -42,12 +47,12 @@ wasm-bindgen = ["rapier3d/wasm-bindgen"]
 serde-serialize = ["rapier3d/serde-serialize", "bevy/serialize", "serde"]
 enhanced-determinism = ["rapier3d/enhanced-determinism"]
 headless = []
-async-collider = ["bevy/bevy_asset", "bevy/bevy_scene"]
+async-collider = ["bevy/bevy_asset", "bevy/bevy_scene", "bevy/bevy_render"]
 
 [dependencies]
 bevy = { version = "0.14", default-features = false }
 nalgebra = { version = "0.33", features = ["convert-glam027"] }
-rapier3d = "0.21"
+rapier3d = "0.22"
 bitflags = "2.4"
 log = "0.4"
 serde = { version = "1", features = ["derive"], optional = true }

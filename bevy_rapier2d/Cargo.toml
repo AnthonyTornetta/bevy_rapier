@@ -17,6 +17,9 @@ edition = "2021"
 path = "../src/lib.rs"
 required-features = ["dim2"]
 
+[lints]
+workspace = true
+
 [features]
 default = ["dim2", "async-collider", "debug-render-2d"]
 dim2 = []
@@ -34,6 +37,8 @@ debug-render-3d = [
     "rapier2d/debug-render",
     "bevy/bevy_asset",
 ]
+rapier-debug-render = ["rapier2d/debug-render"]
+
 parallel = ["rapier2d/parallel"]
 simd-stable = ["rapier2d/simd-stable"]
 simd-nightly = ["rapier2d/simd-nightly"]
@@ -41,12 +46,12 @@ wasm-bindgen = ["rapier2d/wasm-bindgen"]
 serde-serialize = ["rapier2d/serde-serialize", "bevy/serialize", "serde"]
 enhanced-determinism = ["rapier2d/enhanced-determinism"]
 headless = []
-async-collider = ["bevy/bevy_asset", "bevy/bevy_scene"]
+async-collider = ["bevy/bevy_asset", "bevy/bevy_scene", "bevy/bevy_render"]
 
 [dependencies]
 bevy = { version = "0.14", default-features = false }
 nalgebra = { version = "0.33", features = ["convert-glam027"] }
-rapier2d = "0.21"
+rapier2d = "0.22"
 bitflags = "2.4"
 log = "0.4"
 serde = { version = "1", features = ["derive"], optional = true }
@@ -62,6 +67,7 @@ approx = "0.5.1"
 glam = { version = "0.27", features = ["approx"] }
 bevy-inspector-egui = "0.25.1"
 bevy_egui = "0.28.0"
+bevy_mod_debugdump = "0.11"
 
 [package.metadata.docs.rs]
 # Enable all the features when building the docs on docs.rs
