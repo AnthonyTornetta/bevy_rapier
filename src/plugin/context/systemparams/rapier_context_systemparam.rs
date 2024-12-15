@@ -1,4 +1,5 @@
 use crate::math::{Rot, Vect};
+use crate::plugin::RapierContextEntityLink;
 use bevy::ecs::{query, system::SystemParam};
 use bevy::prelude::*;
 use rapier::prelude::Real;
@@ -72,11 +73,8 @@ pub struct RapierContext<'a> {
 }
 
 /// Utility [`SystemParam`] to easily access every required components of a [`RapierContext`] mutably.
-///
-/// This uses the [`DefaultRapierContext`] filter by default, but you can use a custom query filter with the `T` type parameter.
 #[derive(SystemParam)]
-pub struct WriteRapierContext<'w, 's, T: query::QueryFilter + 'static = With<DefaultRapierContext>>
-{
+pub struct WriteRapierContext<'w, 's> {
     /// The query used to feed components into [`RapierContext`] struct through [`ReadRapierContext::single`].
     pub rapier_context: Query<
         'w,
@@ -88,11 +86,45 @@ pub struct WriteRapierContext<'w, 's, T: query::QueryFilter + 'static = With<Def
             &'static mut RapierQueryPipeline,
             &'static mut RapierRigidBodySet,
         ),
-        T,
     >,
 }
 
-impl<'w, 's, T: query::QueryFilter + 'static> WriteRapierContext<'w, 's, T> {
+impl<'w, 's> WriteRapierContext<'w, 's> {
+    /// Use this method if you have multiple [`RapierContext`]s
+    ///
+    /// SAFETY: This method will panic if its underlying query fails.
+    /// Use the underlying query [`WriteRapierContext::rapier_context`] for safer alternatives.
+    pub fn get(&self, link: RapierContextEntityLink) -> RapierContext {
+        let (simulation, colliders, joints, query_pipeline, rigidbody_set) =
+            self.rapier_context.get(link.0).unwrap_or_else(|_| {
+                panic!("Unable to query rapier context components for link {link:?}")
+            });
+        RapierContext {
+            simulation,
+            colliders,
+            joints,
+            query_pipeline,
+            rigidbody_set,
+        }
+    }
+    /// Use this method if you have multiple [`RapierContext`]s.
+    ///
+    /// SAFETY: This method will panic if its underlying query fails.
+    /// Use the underlying query [`WriteRapierContext::rapier_context`] for safer alternatives.
+    pub fn get_mut(&mut self, link: RapierContextEntityLink) -> RapierContextMut {
+        let (simulation, colliders, joints, query_pipeline, rigidbody_set) =
+            self.rapier_context.get_mut(link.0).unwrap_or_else(|_| {
+                panic!("Unable to query rapier context components for link {link:?}")
+            });
+        RapierContextMut {
+            simulation,
+            colliders,
+            joints,
+            query_pipeline,
+            rigidbody_set,
+        }
+    }
+
     /// Use this method if you only have one [`RapierContext`] corresponding to the filter (T) of [`WriteRapierContext`].
     ///
     /// SAFETY: This method will panic if its underlying query fails.
