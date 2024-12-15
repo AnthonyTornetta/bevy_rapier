@@ -1,10 +1,13 @@
-//! systems to support multiple worlds, and changes between them.
+//! systems to support multiple physics contexts, and changes between them.
 
 use crate::dynamics::{
     RapierImpulseJointHandle, RapierMultibodyJointHandle, RapierRigidBodyHandle,
 };
 use crate::geometry::RapierColliderHandle;
-use crate::plugin::{RapierContext, RapierContextEntityLink};
+use crate::plugin::context::RapierRigidBodySet;
+use crate::plugin::context::{
+    RapierContextColliders, RapierContextEntityLink, RapierContextJoints,
+};
 use bevy::prelude::*;
 
 /// If an entity is turned into the child of something with a physics context link,
@@ -49,7 +52,7 @@ fn remove_old_physics(entity: Entity, commands: &mut Commands) {
         .remove::<RapierImpulseJointHandle>();
 }
 
-/// reacts to modifications to [`RapierContextEntityLink`]
+/// Reacts to modifications to [`RapierContextEntityLink`]
 /// to move an entity's physics data from a context to another.
 ///
 /// Also recursively bubbles down context changes to children & flags them to apply any needed physics changes
@@ -67,12 +70,12 @@ pub fn on_change_context(
         let context = q_context.get(new_physics_context.0);
         // Ensure the world actually changed before removing them from the world
         if !context
-            .map(|x| {
-                // They are already apart of this world if any of these are true
-                x.entity2collider.contains_key(&entity)
-                    || x.entity2body.contains_key(&entity)
-                    || x.entity2impulse_joint.contains_key(&entity)
-                    || x.entity2multibody_joint.contains_key(&entity)
+            .map(|(colliders, joints, rigidbody_set)| {
+                // They are already apart of this context if any of these are true
+                colliders.entity2collider.contains_key(&entity)
+                    || rigidbody_set.entity2body.contains_key(&entity)
+                    || joints.entity2impulse_joint.contains_key(&entity)
+                    || joints.entity2multibody_joint.contains_key(&entity)
             })
             .unwrap_or(false)
         {
@@ -125,7 +128,8 @@ fn bubble_down_context_change(
 mod test {
     use crate::plugin::systems::tests::HeadlessRenderPlugin;
     use crate::plugin::{
-        NoUserData, PhysicsSet, RapierContext, RapierContextEntityLink, RapierPhysicsPlugin,
+        context::{RapierContextEntityLink, RapierContextSimulation},
+        NoUserData, PhysicsSet, RapierPhysicsPlugin,
     };
     use crate::prelude::{ActiveEvents, Collider, ContactForceEventThreshold, RigidBody, Sensor};
     use bevy::prelude::*;
@@ -133,7 +137,7 @@ mod test {
     use rapier::math::Real;
 
     #[test]
-    pub fn multi_world_hierarchy_update() {
+    pub fn multi_context_hierarchy_update() {
         let mut app = App::new();
         app.add_plugins((
             HeadlessRenderPlugin,
@@ -161,7 +165,7 @@ mod test {
                 .unwrap_or_else(|| panic!("no link to rapier context entity from {entity}."));
         }
         // Verify link is correctly updated for children.
-        let new_rapier_context = world.spawn(RapierContext::default()).id();
+        let new_rapier_context = world.spawn((RapierContextSimulation::default(),)).id();
         // FIXME: We need to wait 1 frame when creating a context.
         // Ideally we should be able to order the systems so that we don't have to wait.
         app.update();
