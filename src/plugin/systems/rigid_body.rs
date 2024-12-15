@@ -436,7 +436,13 @@ pub fn writeback_rigid_bodies(
 
             let handle = handle.0;
 
-            let context = context_access.context(link).into_inner();
+            let context = context_access
+                .rapier_context
+                .get_mut(link.0)
+                .expect("Invalid link")
+                .4
+                .into_inner();
+
             let sim_to_render_time = sim_to_render_time
                 .get(link.0)
                 .expect("Could not get `SimulationToRenderTime`");
@@ -639,7 +645,13 @@ fn recurse_child_transforms(
 
             let handle = handle.0;
 
-            let context = context_access.context(link).into_inner();
+            let rigidbody_set = context_access
+                .rapier_context
+                .get_mut(link.0)
+                .expect("Invalid link")
+                .4
+                .into_inner();
+
             let sim_to_render_time = sim_to_render_time
                 .get(link.0)
                 .expect("Could not get `SimulationToRenderTime`");
@@ -647,7 +659,7 @@ fn recurse_child_transforms(
             // TODO: do this the other way round: iterate through Rapier’s RigidBodySet on the active bodies,
             // and update the components accordingly. That way, we don’t have to iterate through the entities that weren’t changed
             // by physics (for example because they are sleeping).
-            if let Some(rb) = context.bodies.get_mut(handle) {
+            if let Some(rb) = rigidbody_set.bodies.get_mut(handle) {
                 let mut interpolated_pos = utils::iso_to_transform(rb.position());
 
                 if let TimestepMode::Interpolated { dt, .. } = *timestep_mode {
@@ -727,7 +739,7 @@ fn recurse_child_transforms(
                     my_new_global_transform = parent_global_transform.mul_transform(*transform);
                     world_offset = my_new_global_transform.translation;
 
-                    rigid_body_set
+                    rigidbody_set
                         .last_body_transform_set
                         .insert(handle, GlobalTransform::from(my_new_global_transform));
 
@@ -772,10 +784,6 @@ fn recurse_child_transforms(
                     if sleeping.sleeping != rb.is_sleeping() {
                         sleeping.sleeping = rb.is_sleeping();
                     }
-
-                    rigid_body_set
-                        .last_body_transform_set
-                        .insert(handle, GlobalTransform::from(interpolated_pos));
                 }
             }
 
@@ -846,7 +854,11 @@ fn sync_velocity_recursively(
     context_access: &mut WriteRapierContext,
 ) {
     let vel = if let Ok((handle, link)) = query.get(ent) {
-        let mut context = context_access.context(link);
+        let (_, _, _, _, mut context) = context_access
+            .rapier_context
+            .get_mut(link.0)
+            .expect("Invalid link on entity.");
+
         if let Some(rb) = context.bodies.get_mut(handle.0) {
             #[cfg(feature = "dim3")]
             let old_linvel = Vec3::from(*rb.linvel());

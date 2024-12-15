@@ -63,7 +63,11 @@ pub fn on_change_context(
     >,
     q_children: Query<&Children>,
     q_physics_context: Query<&RapierContextEntityLink>,
-    q_context: Query<&RapierContext>,
+    q_context: Query<(
+        &RapierContextColliders,
+        &RapierContextJoints,
+        &RapierRigidBodySet,
+    )>,
     mut commands: Commands,
 ) {
     for (entity, new_physics_context) in &q_changed_contexts {

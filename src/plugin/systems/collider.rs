@@ -158,7 +158,7 @@ pub fn apply_collider_user_changes(
                 &transform_query,
             );
 
-            if let Some(co) = context.colliders.get_mut(handle.0) {
+            if let Some(co) = context_colliders.colliders.get_mut(handle.0) {
                 let new_pos = utils::transform_to_iso(&collider_position);
 
                 if co
@@ -169,7 +169,7 @@ pub fn apply_collider_user_changes(
                     co.set_position_wrt_parent(new_pos);
                 }
             }
-        } else if let Some(co) = context.colliders.get_mut(handle.0) {
+        } else if let Some(co) = context_colliders.colliders.get_mut(handle.0) {
             let new_pos = utils::transform_to_iso(&transform.compute_transform());
 
             if *co.position() != new_pos {
