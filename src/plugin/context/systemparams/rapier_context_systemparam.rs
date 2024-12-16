@@ -36,6 +36,24 @@ pub struct ReadRapierContext<'w, 's, T: query::QueryFilter + 'static = With<Defa
 }
 
 impl<'w, 's, T: query::QueryFilter + 'static> ReadRapierContext<'w, 's, T> {
+    /// Use this method if you have multiple [`RapierContext`]s
+    ///
+    /// SAFETY: This method will panic if its underlying query fails.
+    /// Use the underlying query [`WriteRapierContext::rapier_context`] for safer alternatives.
+    pub fn get(&self, link: RapierContextEntityLink) -> RapierContext {
+        let (simulation, colliders, joints, query_pipeline, rigidbody_set) =
+            self.rapier_context.get(link.0).unwrap_or_else(|_| {
+                panic!("Unable to query rapier context components for link {link:?}")
+            });
+        RapierContext {
+            simulation,
+            colliders,
+            joints,
+            query_pipeline,
+            rigidbody_set,
+        }
+    }
+
     /// Use this method if you only have one [`RapierContext`].
     ///
     /// SAFETY: This method will panic if its underlying query fails.
