@@ -134,7 +134,7 @@ where
                     // TODO: joints and colliders might be parallelizable.
                     systems::apply_initial_rigid_body_impulses.in_set(RapierBevyComponentApply),
                     systems::apply_rigid_body_user_changes.in_set(RapierBevyComponentApply),
-                    systems::sync_vel,
+                    systems::sync_vel.in_set(RapierBevyComponentApply),
                 )
                     .chain(),
             )
