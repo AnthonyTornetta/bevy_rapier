@@ -19,7 +19,7 @@ use crate::{
 ///
 /// This uses the [`DefaultRapierContext`] filter by default, but you can use a custom query filter with the `T` type parameter.
 #[derive(SystemParam)]
-pub struct ReadRapierContext<'w, 's, T: query::QueryFilter + 'static = With<DefaultRapierContext>> {
+pub struct ReadRapierContext<'w, 's> {
     /// The query used to feed components into [`RapierContext`] struct through [`ReadRapierContext::single`].
     pub rapier_context: Query<
         'w,
@@ -31,15 +31,14 @@ pub struct ReadRapierContext<'w, 's, T: query::QueryFilter + 'static = With<Defa
             &'static RapierQueryPipeline,
             &'static RapierRigidBodySet,
         ),
-        T,
     >,
 }
 
-impl<'w, 's, T: query::QueryFilter + 'static> ReadRapierContext<'w, 's, T> {
+impl<'w, 's> ReadRapierContext<'w, 's> {
     /// Use this method if you have multiple [`RapierContext`]s
     ///
     /// SAFETY: This method will panic if its underlying query fails.
-    /// Use the underlying query [`WriteRapierContext::rapier_context`] for safer alternatives.
+    /// Use the underlying query [`ReadRapierContext::rapier_context`] for safer alternatives.
     pub fn get(&self, link: RapierContextEntityLink) -> RapierContext {
         let (simulation, colliders, joints, query_pipeline, rigidbody_set) =
             self.rapier_context.get(link.0).unwrap_or_else(|_| {
