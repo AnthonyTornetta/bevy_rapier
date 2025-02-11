@@ -407,6 +407,7 @@ pub fn writeback_rigid_bodies(
     top_entities: Query<Entity, Without<Parent>>,
     timestep_mode: Res<TimestepMode>,
     mut writeback: Query<RigidBodyWritebackComponents, Without<RigidBodyDisabled>>,
+    q_disabled_trans: Query<&Transform, With<RigidBodyDisabled>>,
     children_query: Query<&Children>,
 ) {
     for entity in top_entities.iter() {
@@ -573,13 +574,23 @@ pub fn writeback_rigid_bodies(
                 my_vel_delta,
             )
         } else {
-            (
-                Transform::IDENTITY,
-                Transform::IDENTITY,
-                Velocity::default(),
-                Vec3::ZERO,
-                Velocity::default(),
-            )
+            if let Ok(transform) = q_disabled_trans.get(entity) {
+                (
+                    *transform,
+                    Transform::IDENTITY,
+                    Velocity::default(),
+                    transform.translation,
+                    Velocity::default(),
+                )
+            } else {
+                (
+                    Transform::IDENTITY,
+                    Transform::IDENTITY,
+                    Velocity::default(),
+                    Vec3::ZERO,
+                    Velocity::default(),
+                )
+            }
         };
 
         recurse_child_transforms(
@@ -595,6 +606,7 @@ pub fn writeback_rigid_bodies(
             &children_query,
             entity,
             world_offset,
+            &q_disabled_trans,
         );
     }
 }
@@ -612,6 +624,7 @@ fn recurse_child_transforms(
     children_query: &Query<&Children>,
     parent_entity: Entity,
     world_offset: Vec3,
+    q_disabled_trans: &Query<&Transform, With<RigidBodyDisabled>>,
 ) {
     let Ok(children) = children_query.get(parent_entity) else {
         return;
@@ -794,12 +807,21 @@ fn recurse_child_transforms(
                 my_delta_velocity,
             )
         } else {
-            (
-                parent_global_transform,
-                parent_delta,
-                parent_velocity,
-                parent_delta_velocity,
-            )
+            if let Ok(transform) = q_disabled_trans.get(child) {
+                (
+                    parent_global_transform * *transform,
+                    parent_delta,
+                    Velocity::default(),
+                    Velocity::default(),
+                )
+            } else {
+                (
+                    parent_global_transform,
+                    parent_delta,
+                    Velocity::default(),
+                    Velocity::default(),
+                )
+            }
         };
 
         recurse_child_transforms(
@@ -815,6 +837,7 @@ fn recurse_child_transforms(
             children_query,
             child,
             world_offset,
+            q_disabled_trans,
         );
     }
 }
