@@ -583,13 +583,7 @@ pub fn writeback_rigid_bodies(
                     Velocity::default(),
                 )
             } else {
-                (
-                    Transform::IDENTITY,
-                    Transform::IDENTITY,
-                    Velocity::default(),
-                    Vec3::ZERO,
-                    Velocity::default(),
-                )
+                continue;
             }
         };
 
@@ -815,12 +809,7 @@ fn recurse_child_transforms(
                     Velocity::default(),
                 )
             } else {
-                (
-                    parent_global_transform,
-                    parent_delta,
-                    Velocity::default(),
-                    Velocity::default(),
-                )
+                continue;
             }
         };
 
