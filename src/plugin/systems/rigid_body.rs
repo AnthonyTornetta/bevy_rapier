@@ -14,6 +14,7 @@ use std::collections::HashMap;
 pub type RigidBodyWritebackComponents<'a> = (
     &'a RapierRigidBodyHandle,
     &'a RapierContextEntityLink,
+    Option<&'a ChildOf>,
     Option<&'a mut Transform>,
     Option<&'a RigidBody>,
     Option<&'a mut TransformInterpolation>,
@@ -285,7 +286,7 @@ pub fn apply_rigid_body_user_changes(
                 }
             }
 
-            mass_modified.send(entity.into());
+            mass_modified.write(entity.into());
         }
     }
 
@@ -1002,7 +1003,7 @@ pub fn init_rigid_bodies(
         // Get rapier context from RapierContextEntityLink or insert its default value.
         let context_entity = entity_context_link.map_or_else(
             || {
-                let context_entity = default_context_access.get_single().ok()?;
+                let context_entity = default_context_access.single().ok()?;
                 commands
                     .entity(entity)
                     .insert(RapierContextEntityLink(context_entity));

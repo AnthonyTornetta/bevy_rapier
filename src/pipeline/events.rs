@@ -132,7 +132,6 @@ mod test {
         transform::{components::Transform, TransformPlugin},
         MinimalPlugins,
     };
-    use systems::tests::HeadlessRenderPlugin;
 
     use crate::{plugin::*, prelude::*};
 
@@ -186,6 +185,7 @@ mod test {
             app.insert_resource(TimeUpdateStrategy::ManualDuration(
                 std::time::Duration::from_secs_f32(1f32 / 60f32),
             ));
+            app.finish();
             // 2 seconds should be plenty of time for the cube to fall on the
             // lowest collider.
             for _ in 0..120 {
@@ -195,19 +195,18 @@ mod test {
                 .world()
                 .get_resource::<EventsSaver<CollisionEvent>>()
                 .unwrap();
-            assert!(saved_collisions.events.len() > 0);
+            assert!(!saved_collisions.events.is_empty());
             let saved_contact_forces = app
                 .world()
                 .get_resource::<EventsSaver<CollisionEvent>>()
                 .unwrap();
-            assert!(saved_contact_forces.events.len() > 0);
+            assert!(!saved_contact_forces.events.is_empty());
         }
 
         /// Adapted from events example
         fn main() {
             let mut app = App::new();
             app.add_plugins((
-                HeadlessRenderPlugin,
                 TransformPlugin,
                 TimePlugin,
                 RapierPhysicsPlugin::<NoUserData>::default(),
@@ -242,7 +241,6 @@ mod test {
     pub fn spam_remove_rapier_entity_interpolated() {
         let mut app = App::new();
         app.add_plugins((
-            HeadlessRenderPlugin,
             MinimalPlugins,
             TransformPlugin,
             RapierPhysicsPlugin::<NoUserData>::default(),
@@ -258,6 +256,8 @@ mod test {
         app.insert_resource(TimeUpdateStrategy::ManualDuration(
             std::time::Duration::from_secs_f32(1f32 / 60f32),
         ));
+
+        app.finish();
 
         for _ in 0..100 {
             app.update();

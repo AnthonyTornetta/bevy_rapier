@@ -6,7 +6,6 @@ pub fn default_app() -> App {
 
     app.add_plugins((
         MinimalPlugins,
-        HierarchyPlugin,
         TransformPlugin,
         RapierPhysicsPlugin::<()>::default(),
     ));

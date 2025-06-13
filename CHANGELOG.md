@@ -2,15 +2,59 @@
 
 ## Unreleased
 
+### Added
+
+- Expose `RapierBevyComponentApply`, to help with creating your own schedules when you set `default_system_setup` to `false`.
+
+### Fix
+
+- Fix scale being applied with a frame delay. [#659](https://github.com/dimforge/bevy_rapier/pull/659)
+
+## v0.30.0 (15 May 2025)
+
+### Added
+
+- Added a serialization `serialization2` example for `bevy_rapier2d`.
+- Added reflection for `Default` in addition to `Component`. [#649](https://github.com/dimforge/bevy_rapier/pull/649)
+
 ### Modified
 
+- Update Bevy to `0.16`.
+- Update from rapier `0.23` to rapier `0.25`,
+  see [rapier's changelog](https://github.com/dimforge/rapier/blob/master/CHANGELOG.md).
+  - Notably, support and examples for parry's new `Voxels` shape have been added.
+- `RapierContextInitialization::InitializeDefaultRapierContext` now has more fields for better control over default physics context.
+- `ContactPairView::collider1` and `ContactPairView::collider2` now return an `Option`.
+
+### Fix
+
+- Fix position being incorrect when a rigidbody bevy entity has a scaled parent. [#646](https://github.com/dimforge/bevy_rapier/pull/646)
+
+## v0.29.0 (18 February 2025)
+
+### Added
+
+- Added optional feature `picking-backend` to support bevy_picking.
+  - See `picking_backend` module documentation for more details.
+- Added `geometry::to_bevy_mesh` module behind the feature `to-bevy-mesh` to help with converting parry shapes into bevy meshes (#628).
+  - Lines, round and custom shapes are not implemented.
+
+### Modified
+
+- Update from rapier `0.22` to rapier `0.23`,
+  see [rapier's changelog](https://github.com/dimforge/rapier/blob/master/CHANGELOG.md).
+- `Collider::trimesh` and `Collider::trimesh_with_flags` now return a `Result`.
+- Under the feature `async-collider`, The `RapierPhysicsPlugin` now adds
+  `AssetPlugin`, `MeshPlugin` and `ScenePlugin` if these were not added, to circumvent a runtime crash
+  over missing required resources.
+- `RapierPhysicsPlugin` can be customized through `with_physics_sets_systems` to opt out of default systems from `PhysicsSet`.
 - `RapierContext` has been split in multiple `Component`s:
   - `RapierContextColliders`
   - `RapierContextJoints`
   - `RapierContextSimulation`
   - `RapierRigidBodySet`
-- Renamed `DefaultReadRapierContext` and `DefaultWriteRapierContext`.
-  - Use `ReadRapierContext` and its associated `single()` method.
+- Renamed `DefaultReadRapierContext` to `ReadRapierContext` and `DefaultWriteRapierContext` to `WriteRapierContext`.
+  They have a new `bevy::QueryFilter` type parameter, defaulting to `With<DefaultRapierContext>`.
 
 ## v0.28.0 (09 December 2024)
 

@@ -93,16 +93,7 @@ pub fn step_simulation<Hooks>(
 #[cfg(test)]
 #[allow(missing_docs)]
 pub mod tests {
-    use bevy::{
-        asset::AssetPlugin,
-        ecs::event::Events,
-        render::{
-            settings::{RenderCreation, WgpuSettings},
-            RenderPlugin,
-        },
-        scene::ScenePlugin,
-        time::TimePlugin,
-    };
+    use bevy::{ecs::event::Events, time::TimePlugin};
     use rapier::geometry::CollisionEventFlags;
     use std::f32::consts::PI;
 
@@ -203,11 +194,11 @@ pub mod tests {
     fn transform_propagation() {
         let mut app = App::new();
         app.add_plugins((
-            HeadlessRenderPlugin,
             TransformPlugin,
             TimePlugin,
             RapierPhysicsPlugin::<NoUserData>::default(),
         ));
+        app.finish();
 
         let zero = (Transform::default(), Transform::default());
 
@@ -241,17 +232,30 @@ pub mod tests {
             let world = app.world_mut();
             let rigidbody_set = world
                 .query::<&RapierRigidBodySet>()
-                .iter(&world)
+                .iter(world)
                 .next()
                 .unwrap();
             let child_transform = world.entity(child).get::<GlobalTransform>().unwrap();
             let child_handle = rigidbody_set.entity2body[&child];
             let child_body = rigidbody_set.bodies.get(child_handle).unwrap();
             let body_transform = utils::iso_to_transform(child_body.position());
-            assert_eq!(
-                GlobalTransform::from(body_transform),
-                *child_transform,
-                "Collider transform should have have global rotation and translation"
+
+            fn transforms_approx_equal(
+                a: &GlobalTransform,
+                b: &GlobalTransform,
+                epsilon: f32,
+            ) -> bool {
+                a.translation().abs_diff_eq(b.translation(), epsilon)
+                    && a.scale().abs_diff_eq(b.scale(), epsilon)
+                    && a.rotation().abs_diff_eq(b.rotation(), epsilon)
+            }
+            assert!(
+                transforms_approx_equal(
+                    &GlobalTransform::from(body_transform),
+                    child_transform,
+                    1.0e-5,
+                ),
+                "Collider transforms should have have equal global rotation and translation"
             );
         }
     }
@@ -260,11 +264,11 @@ pub mod tests {
     fn transform_propagation2() {
         let mut app = App::new();
         app.add_plugins((
-            HeadlessRenderPlugin,
             TransformPlugin,
             TimePlugin,
             RapierPhysicsPlugin::<NoUserData>::default(),
         ));
+        app.finish();
 
         let zero = (Transform::default(), Transform::default());
 
@@ -309,7 +313,7 @@ pub mod tests {
             let world = app.world_mut();
             let (rigidbody_set, context_colliders) = world
                 .query::<(&RapierRigidBodySet, &RapierContextColliders)>()
-                .iter(&world)
+                .iter(world)
                 .next()
                 .unwrap();
             let parent_handle = rigidbody_set.entity2body[&parent];
@@ -340,26 +344,6 @@ pub mod tests {
                 epsilon = 1.0e-5
             );
             approx::assert_relative_eq!(body_transform.scale, child_transform.scale,);
-        }
-    }
-
-    // Allows run tests for systems containing rendering related things without GPU
-    pub struct HeadlessRenderPlugin;
-
-    impl Plugin for HeadlessRenderPlugin {
-        fn build(&self, app: &mut App) {
-            app.add_plugins((
-                AssetPlugin::default(),
-                ScenePlugin,
-                RenderPlugin {
-                    render_creation: RenderCreation::Automatic(WgpuSettings {
-                        backends: None,
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                },
-                ImagePlugin::default(),
-            ));
         }
     }
 }

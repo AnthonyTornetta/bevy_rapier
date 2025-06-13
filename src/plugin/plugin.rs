@@ -1,10 +1,12 @@
 use crate::pipeline::{CollisionEvent, ContactForceEvent};
 use crate::prelude::*;
+use crate::reflect::IntegrationParametersWrapper;
 use bevy::ecs::{
     intern::Interned,
-    schedule::{ScheduleLabel, SystemConfigs},
-    system::SystemParamItem,
+    schedule::{IntoScheduleConfigs, ScheduleConfigs, ScheduleLabel},
+    system::{ScheduleSystem, SystemParamItem},
 };
+use bevy::platform::collections::HashSet;
 use bevy::{prelude::*, transform::TransformSystem};
 use rapier::dynamics::IntegrationParameters;
 use std::marker::PhantomData;
@@ -28,6 +30,14 @@ pub struct RapierPhysicsPlugin<PhysicsHooks = ()> {
     /// to help initializing [`RapierContextInitialization`] resource.
     /// This will be ignored if that resource already exists.
     default_world_setup: RapierContextInitialization,
+    /// Controls whether given `PhysicsSets` systems are injected into the scheduler.
+    ///
+    /// This is useful to opt out of default plugin behaviour, for example if you need to reorganize
+    /// the systems in different schedules.
+    ///
+    /// If passing an empty set, the plugin will still add the Physics Sets to the plugin schedule,
+    /// but no systems will be added automatically.
+    enabled_physics_schedules: HashSet<PhysicsSet>,
     _phantom: PhantomData<PhysicsHooks>,
 }
 
@@ -44,7 +54,7 @@ where
     /// conversion ratio.
     pub fn with_length_unit(mut self, length_unit: f32) -> Self {
         self.default_world_setup =
-            RapierContextInitialization::InitializeDefaultRapierContext { length_unit };
+            RapierContextInitialization::default_with_length_unit(length_unit);
         self
     }
 
@@ -75,11 +85,26 @@ where
     pub fn pixels_per_meter(pixels_per_meter: f32) -> Self {
         Self {
             default_system_setup: true,
-            default_world_setup: RapierContextInitialization::InitializeDefaultRapierContext {
-                length_unit: pixels_per_meter,
-            },
+            default_world_setup: RapierContextInitialization::default_with_length_unit(
+                pixels_per_meter,
+            ),
             ..default()
         }
+    }
+
+    /// Controls whether given `PhysicsSets` systems are injected into the scheduler.
+    ///
+    /// This is useful to opt out of default plugin behaviour, for example if you need to reorganize
+    /// the systems in different schedules.
+    ///
+    /// If passing an empty set, the plugin will still add the Physics Sets to the plugin schedule,
+    /// but no systems will be added automatically.
+    pub fn with_physics_sets_systems(
+        mut self,
+        enabled_physics_schedules: HashSet<PhysicsSet>,
+    ) -> Self {
+        self.enabled_physics_schedules = enabled_physics_schedules;
+        self
     }
 
     /// Adds the physics systems to the `FixedUpdate` schedule rather than `PostUpdate`.
@@ -96,15 +121,23 @@ where
     /// Provided for use when staging systems outside of this plugin using
     /// [`with_default_system_setup(false)`](Self::with_default_system_setup).
     /// See [`PhysicsSet`] for a description of these systems.
-    pub fn get_systems(set: PhysicsSet) -> SystemConfigs {
+    pub fn get_systems(set: PhysicsSet) -> ScheduleConfigs<ScheduleSystem> {
         match set {
             PhysicsSet::SyncBackend => (
-                // Run the character controller before the manual transform propagation.
-                systems::update_character_controls.in_set(PhysicsSet::SyncBackend),
+                (
+                    // Initialize the rapier configuration.
+                    // A good candidate for required component or hook components.
+                    // The configuration is needed for following systems, so it should be chained.
+                    setup_rapier_configuration,
+                    // Run the character controller before the manual transform propagation.
+                    systems::update_character_controls,
+                )
+                    .chain()
+                    .in_set(PhysicsSet::SyncBackend),
                 // Run Bevy transform propagation additionally to sync [`GlobalTransform`]
                 (
                     bevy::transform::systems::sync_simple_transforms,
-                    bevy::transform::systems::propagate_transforms,
+                    bevy::transform::systems::propagate_parent_transforms,
                 )
                     .chain()
                     .in_set(RapierTransformPropagateSet),
@@ -125,8 +158,8 @@ where
                         .in_set(PhysicsSet::SyncBackend),
                     (
                         (
-                            systems::apply_collider_user_changes.in_set(RapierBevyComponentApply),
                             systems::apply_scale.in_set(RapierBevyComponentApply),
+                            systems::apply_collider_user_changes.in_set(RapierBevyComponentApply),
                         )
                             .chain(),
                         systems::apply_joint_user_changes.in_set(RapierBevyComponentApply),
@@ -171,6 +204,11 @@ impl<PhysicsHooksSystemParam> Default for RapierPhysicsPlugin<PhysicsHooksSystem
             schedule: PostUpdate.intern(),
             default_system_setup: true,
             default_world_setup: Default::default(),
+            enabled_physics_schedules: HashSet::from_iter([
+                PhysicsSet::SyncBackend,
+                PhysicsSet::StepSimulation,
+                PhysicsSet::Writeback,
+            ]),
             _phantom: PhantomData,
         }
     }
@@ -235,18 +273,13 @@ where
             .insert_resource(Events::<MassModifiedEvent>::default());
         let default_world_init = app.world().get_resource::<RapierContextInitialization>();
         if let Some(world_init) = default_world_init {
-            warn!("RapierPhysicsPlugin added but a `RapierContextInitialization` resource was already existing.\
+            log::warn!("RapierPhysicsPlugin added but a `RapierContextInitialization` resource was already existing.\
             This might overwrite previous configuration made via `RapierPhysicsPlugin::with_custom_initialization`\
             or `RapierPhysicsPlugin::with_length_unit`.
             The following resource will be used: {:?}", world_init);
         } else {
             app.insert_resource(self.default_world_setup.clone());
         }
-
-        app.add_systems(
-            self.schedule,
-            setup_rapier_configuration.before(PhysicsSet::SyncBackend),
-        );
 
         app.add_systems(
             PreStartup,
@@ -282,15 +315,15 @@ where
                 self.schedule,
                 RapierBevyComponentApply.in_set(PhysicsSet::SyncBackend),
             );
+            let mut add_systems_if_enabled = |physics_set: PhysicsSet| {
+                if self.enabled_physics_schedules.contains(&physics_set) {
+                    app.add_systems(self.schedule, Self::get_systems(physics_set));
+                }
+            };
+            add_systems_if_enabled(PhysicsSet::SyncBackend);
+            add_systems_if_enabled(PhysicsSet::Writeback);
+            add_systems_if_enabled(PhysicsSet::StepSimulation);
 
-            app.add_systems(
-                self.schedule,
-                (
-                    Self::get_systems(PhysicsSet::SyncBackend),
-                    Self::get_systems(PhysicsSet::StepSimulation),
-                    Self::get_systems(PhysicsSet::Writeback),
-                ),
-            );
             app.init_resource::<TimestepMode>();
 
             // Warn user if the timestep mode isn't in Fixed
@@ -299,9 +332,25 @@ where
                 match config {
                     TimestepMode::Fixed { .. } => {}
                     mode => {
-                        warn!("TimestepMode is set to `{:?}`, it is recommended to use `TimestepMode::Fixed` if you have the physics in `FixedUpdate`", mode);
+                        log::warn!("TimestepMode is set to `{:?}`, it is recommended to use `TimestepMode::Fixed` if you have the physics in `FixedUpdate`", mode);
                     }
                 }
+            }
+        }
+    }
+
+    fn finish(&self, _app: &mut App) {
+        #[cfg(all(feature = "dim3", feature = "async-collider"))]
+        {
+            use bevy::{asset::AssetPlugin, render::mesh::MeshPlugin, scene::ScenePlugin};
+            if !_app.is_plugin_added::<AssetPlugin>() {
+                _app.add_plugins(AssetPlugin::default());
+            }
+            if !_app.is_plugin_added::<MeshPlugin>() {
+                _app.add_plugins(MeshPlugin);
+            }
+            if !_app.is_plugin_added::<ScenePlugin>() {
+                _app.add_plugins(ScenePlugin);
             }
         }
     }
@@ -322,14 +371,37 @@ pub enum RapierContextInitialization {
     /// [`RapierPhysicsPlugin`] will spawn an entity containing a [`RapierContextSimulation`]
     /// automatically during [`PreStartup`], with the [`DefaultRapierContext`] marker component.
     InitializeDefaultRapierContext {
-        /// See [`IntegrationParameters::length_unit`]
-        length_unit: f32,
+        /// Integration parameters component which will be added to the default rapier context.
+        #[reflect(remote = IntegrationParametersWrapper)]
+        integration_parameters: IntegrationParameters,
+        /// Rapier configuration component which will be added to the default rapier context.
+        rapier_configuration: RapierConfiguration,
     },
 }
 
 impl Default for RapierContextInitialization {
     fn default() -> Self {
-        RapierContextInitialization::InitializeDefaultRapierContext { length_unit: 1f32 }
+        Self::default_with_length_unit(1f32)
+    }
+}
+
+impl RapierContextInitialization {
+    /// Configures rapier with the specified length unit.
+    ///
+    /// See the documentation of [`IntegrationParameters::length_unit`] for additional details
+    /// on that argument.
+    ///
+    /// The default gravity is automatically scaled by that length unit.
+    pub fn default_with_length_unit(length_unit: f32) -> Self {
+        let integration_parameters = IntegrationParameters {
+            length_unit,
+            ..default()
+        };
+
+        RapierContextInitialization::InitializeDefaultRapierContext {
+            integration_parameters,
+            rapier_configuration: RapierConfiguration::new(length_unit),
+        }
     }
 }
 
@@ -339,16 +411,17 @@ pub fn insert_default_context(
 ) {
     match initialization_data.as_ref() {
         RapierContextInitialization::NoAutomaticRapierContext => {}
-        RapierContextInitialization::InitializeDefaultRapierContext { length_unit } => {
+        RapierContextInitialization::InitializeDefaultRapierContext {
+            integration_parameters,
+            rapier_configuration,
+        } => {
             commands.spawn((
                 Name::new("Rapier Context"),
                 RapierContextSimulation {
-                    integration_parameters: IntegrationParameters {
-                        length_unit: *length_unit,
-                        ..default()
-                    },
+                    integration_parameters: *integration_parameters,
                     ..RapierContextSimulation::default()
                 },
+                *rapier_configuration,
                 DefaultRapierContext,
             ));
         }
@@ -375,7 +448,6 @@ mod test {
         time::{TimePlugin, TimeUpdateStrategy},
     };
     use rapier::{data::Index, dynamics::RigidBodyHandle};
-    use systems::tests::HeadlessRenderPlugin;
 
     use crate::{plugin::context::*, plugin::*, prelude::*};
 
@@ -403,6 +475,8 @@ mod test {
             ));
 
             app.add_systems(Update, setup_physics);
+
+            app.finish();
 
             let mut stepping = Stepping::new();
 
@@ -458,7 +532,7 @@ mod test {
                 let rigidbody_set = app
                     .world_mut()
                     .query::<&RapierRigidBodySet>()
-                    .get_single(&app.world())
+                    .single(app.world())
                     .unwrap();
 
                 println!("{:?}", &rigidbody_set.entity2body);
@@ -466,7 +540,7 @@ mod test {
             let rigidbody_set = app
                 .world_mut()
                 .query::<&RapierRigidBodySet>()
-                .get_single(&app.world())
+                .single(app.world())
                 .unwrap();
 
             assert_eq!(
@@ -479,7 +553,6 @@ mod test {
         fn main() {
             let mut app = App::new();
             app.add_plugins((
-                HeadlessRenderPlugin,
                 TransformPlugin,
                 TimePlugin,
                 RapierPhysicsPlugin::<NoUserData>::default(),
@@ -527,6 +600,7 @@ mod test {
             app.add_systems(Update, remove_rapier_entity);
             app.add_systems(FixedUpdate, || println!("Fixed Update"));
             app.add_systems(Update, || println!("Update"));
+            app.finish();
             // startup
             app.update();
             // normal updates starting
@@ -539,7 +613,7 @@ mod test {
             let context = app
                 .world_mut()
                 .query::<RapierContext>()
-                .get_single(&app.world())
+                .single(app.world())
                 .unwrap();
             assert_eq!(context.rigidbody_set.entity2body.len(), 1);
 
@@ -550,7 +624,7 @@ mod test {
             let context = app
                 .world_mut()
                 .query::<RapierContext>()
-                .get_single(&app.world())
+                .single(app.world())
                 .unwrap();
 
             println!("{:?}", &context.rigidbody_set.entity2body);
@@ -560,7 +634,6 @@ mod test {
         fn main() {
             let mut app = App::new();
             app.add_plugins((
-                HeadlessRenderPlugin,
                 TransformPlugin,
                 TimePlugin,
                 RapierPhysicsPlugin::<NoUserData>::default().in_fixed_schedule(),
@@ -590,6 +663,128 @@ mod test {
             for e in &to_remove {
                 commands.entity(e).despawn();
             }
+        }
+    }
+
+    #[test]
+    fn parent_child() {
+        return main();
+
+        use bevy::prelude::*;
+
+        fn main() {
+            let mut app = App::new();
+            app.add_plugins((
+                TransformPlugin,
+                TimePlugin,
+                RapierPhysicsPlugin::<NoUserData>::default().in_fixed_schedule(),
+            ));
+            run_test(&mut app);
+        }
+
+        fn run_test(app: &mut App) {
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f32(1f32 / 60f32),
+            ));
+            app.add_systems(Startup, init_rapier_configuration);
+            app.add_systems(Startup, setup_physics);
+
+            app.finish();
+            for _ in 0..100 {
+                app.update();
+            }
+            let context = app
+                .world_mut()
+                .query::<RapierContext>()
+                .single(app.world())
+                .unwrap();
+
+            println!("{:#?}", &context.rigidbody_set.bodies);
+        }
+
+        pub fn init_rapier_configuration(
+            mut config: Query<&mut RapierConfiguration, With<DefaultRapierContext>>,
+        ) {
+            let mut config = config.single_mut().unwrap();
+            *config = RapierConfiguration {
+                force_update_from_transform_changes: true,
+                ..RapierConfiguration::new(1f32)
+            };
+        }
+
+        pub fn setup_physics(mut commands: Commands) {
+            let parent = commands
+                .spawn(Transform::from_scale(Vec3::splat(5f32)))
+                .id();
+            let mut entity_commands = commands.spawn((
+                Collider::ball(1f32),
+                Transform::from_translation(Vec3::new(200f32, 100f32, 3f32)),
+                RigidBody::Fixed,
+            ));
+            entity_commands.insert(ChildOf(parent));
+        }
+    }
+
+    #[test]
+    fn initial_scale() {
+        return main();
+
+        use bevy::prelude::*;
+
+        fn main() {
+            let mut app = App::new();
+            app.add_plugins((
+                TransformPlugin,
+                TimePlugin,
+                RapierPhysicsPlugin::<NoUserData>::default().in_fixed_schedule(),
+            ));
+            run_test(&mut app);
+        }
+
+        fn run_test(app: &mut App) {
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f32(1f32 / 60f32),
+            ));
+            app.add_systems(Update, setup_physics.run_if(run_once));
+
+            app.finish();
+
+            // Running startup
+            app.update();
+            // Running first physics setup, initializes colliders and scaling.
+            app.update();
+
+            let collider = app
+                .world_mut()
+                .query::<&Collider>()
+                .single(app.world())
+                .unwrap();
+            approx::assert_relative_eq!(collider.scale, Vect::splat(0.1), epsilon = 1.0e-5);
+
+            let context = app
+                .world_mut()
+                .query::<RapierContext>()
+                .single(app.world())
+                .unwrap();
+            let physics_ball_radius = context
+                .colliders
+                .colliders
+                .iter()
+                .next()
+                .unwrap()
+                .1
+                .shape()
+                .as_ball()
+                .unwrap()
+                .radius;
+            approx::assert_relative_eq!(physics_ball_radius, 0.1, epsilon = 0.1);
+        }
+
+        pub fn setup_physics(mut commands: Commands) {
+            commands.spawn((
+                Transform::from_translation(Vec3::new(-0.2, 0.0, 0.0)).with_scale(Vec3::splat(0.1)),
+                Collider::ball(1.0),
+            ));
         }
     }
 }

@@ -92,7 +92,7 @@ pub fn setup_game(mut commands: Commands, mut game: ResMut<Game>) {
         byte_rgb(255, 0, 0),
     ];
 
-    commands.spawn(Camera2d::default());
+    commands.spawn(Camera2d);
 
     setup_board(&mut commands, &game);
 
@@ -259,7 +259,7 @@ fn clear_filled_rows(
             game.stats.cleared_blocks += game.n_lanes as i32;
 
             for block_entity in row_blocks {
-                commands.entity(block_entity).despawn_recursive();
+                commands.entity(block_entity).despawn();
             }
         }
     }
