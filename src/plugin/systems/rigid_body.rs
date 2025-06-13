@@ -14,7 +14,6 @@ use std::collections::HashMap;
 pub type RigidBodyWritebackComponents<'a> = (
     &'a RapierRigidBodyHandle,
     &'a RapierContextEntityLink,
-    Option<&'a ChildOf>,
     Option<&'a mut Transform>,
     Option<&'a RigidBody>,
     Option<&'a mut TransformInterpolation>,
@@ -405,7 +404,7 @@ pub fn writeback_rigid_bodies(
     mut context_access: WriteRapierContext,
     config: Query<&RapierConfiguration>,
     sim_to_render_time: Query<&SimulationToRenderTime>,
-    top_entities: Query<Entity, Without<Parent>>,
+    top_entities: Query<Entity, Without<ChildOf>>,
     timestep_mode: Res<TimestepMode>,
     mut writeback: Query<RigidBodyWritebackComponents, Without<RigidBodyDisabled>>,
     q_disabled_trans: Query<&Transform, With<RigidBodyDisabled>>,
@@ -625,7 +624,7 @@ fn recurse_child_transforms(
         return;
     };
 
-    for child in children.iter().copied() {
+    for child in children.iter() {
         let mut world_offset = world_offset;
 
         let (transform, delta_transform, velocity, delta_velocity) = if let Ok((
@@ -838,7 +837,7 @@ fn recurse_child_transforms(
 ///
 /// This will not change the bevy component's velocity.
 pub(crate) fn sync_vel(
-    top_ents: Query<Entity, Without<Parent>>,
+    top_ents: Query<Entity, Without<ChildOf>>,
     vel_query: Query<&Velocity>,
     query: Query<(&RapierRigidBodyHandle, &RapierContextEntityLink)>,
     children_query: Query<&Children>,
@@ -852,7 +851,7 @@ pub(crate) fn sync_vel(
         };
 
         if let Ok(children) = children_query.get(ent) {
-            for child in children.iter().copied() {
+            for child in children.iter() {
                 sync_velocity_recursively(child, &query, &children_query, vel, &mut context_access);
             }
         }
@@ -895,7 +894,7 @@ fn sync_velocity_recursively(
     };
 
     if let Ok(children) = children_query.get(ent) {
-        for child in children.iter().copied() {
+        for child in children.iter() {
             sync_velocity_recursively(child, query, children_query, vel, context_access);
         }
     }
