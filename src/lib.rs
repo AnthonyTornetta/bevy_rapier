@@ -10,6 +10,7 @@
 //! User documentation for `bevy_rapier` is on [the official Rapier site](https://rapier.rs/docs/).
 //!
 #![warn(missing_docs)]
+#![allow(mismatched_lifetime_syntaxes)]
 
 #[macro_use]
 #[cfg(feature = "serde-serialize")]

@@ -441,7 +441,7 @@ pub fn writeback_rigid_bodies(
                 .rapier_context
                 .get_mut(link.0)
                 .expect("Invalid link")
-                .4
+                .3
                 .into_inner();
 
             let sim_to_render_time = sim_to_render_time
@@ -656,7 +656,7 @@ fn recurse_child_transforms(
                 .rapier_context
                 .get_mut(link.0)
                 .expect("Invalid link")
-                .4
+                .3
                 .into_inner();
 
             let sim_to_render_time = sim_to_render_time
@@ -866,7 +866,7 @@ fn sync_velocity_recursively(
     context_access: &mut WriteRapierContext,
 ) {
     let vel = if let Ok((handle, link)) = query.get(ent) {
-        let (_, _, _, _, mut context) = context_access
+        let (_, _, _, mut context) = context_access
             .rapier_context
             .get_mut(link.0)
             .expect("Invalid link on entity.");

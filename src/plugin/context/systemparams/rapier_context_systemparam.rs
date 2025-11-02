@@ -8,9 +8,12 @@ pub(crate) const RAPIER_CONTEXT_EXPECT_ERROR: &str =
     "RapierContextEntityLink.0 refers to an entity missing components from RapierContextSimulation.";
 
 use crate::plugin::context::{
-    DefaultRapierContext, RapierContextColliders, RapierContextJoints, RapierContextSimulation,
-    RapierQueryPipeline, RapierRigidBodySet,
+    RapierContextColliders, RapierContextJoints, RapierContextSimulation, RapierQueryPipeline,
+    RapierRigidBodySet,
 };
+
+#[cfg(doc)]
+use crate::plugin::context::DefaultRapierContext;
 
 /// Utility [`SystemParam`] to easily access every required components of a [`RapierContext`] immutably.
 ///
@@ -36,7 +39,7 @@ impl<'w, 's> ReadRapierContext<'w, 's> {
     /// SAFETY: This method will panic if its underlying query fails.
     /// Use the underlying query [`ReadRapierContext::rapier_context`] for safer alternatives.
     pub fn get(&self, link: RapierContextEntityLink) -> RapierContext {
-        let (simulation, colliders, joints, query_pipeline, rigidbody_set) =
+        let (simulation, colliders, joints, rigidbody_set) =
             self.rapier_context.get(link.0).unwrap_or_else(|_| {
                 panic!("Unable to query rapier context components for link {link:?}")
             });
@@ -44,7 +47,6 @@ impl<'w, 's> ReadRapierContext<'w, 's> {
             simulation,
             colliders,
             joints,
-            query_pipeline,
             rigidbody_set,
         }
     }
@@ -104,7 +106,7 @@ impl<'w, 's> WriteRapierContext<'w, 's> {
     /// SAFETY: This method will panic if its underlying query fails.
     /// Use the underlying query [`WriteRapierContext::rapier_context`] for safer alternatives.
     pub fn get(&self, link: RapierContextEntityLink) -> RapierContext {
-        let (simulation, colliders, joints, query_pipeline, rigidbody_set) =
+        let (simulation, colliders, joints, rigidbody_set) =
             self.rapier_context.get(link.0).unwrap_or_else(|_| {
                 panic!("Unable to query rapier context components for link {link:?}")
             });
@@ -112,7 +114,6 @@ impl<'w, 's> WriteRapierContext<'w, 's> {
             simulation,
             colliders,
             joints,
-            query_pipeline,
             rigidbody_set,
         }
     }
@@ -121,7 +122,7 @@ impl<'w, 's> WriteRapierContext<'w, 's> {
     /// SAFETY: This method will panic if its underlying query fails.
     /// Use the underlying query [`WriteRapierContext::rapier_context`] for safer alternatives.
     pub fn get_mut(&mut self, link: RapierContextEntityLink) -> RapierContextMut {
-        let (simulation, colliders, joints, query_pipeline, rigidbody_set) =
+        let (simulation, colliders, joints, rigidbody_set) =
             self.rapier_context.get_mut(link.0).unwrap_or_else(|_| {
                 panic!("Unable to query rapier context components for link {link:?}")
             });
@@ -129,7 +130,6 @@ impl<'w, 's> WriteRapierContext<'w, 's> {
             simulation,
             colliders,
             joints,
-            query_pipeline,
             rigidbody_set,
         }
     }

@@ -28,7 +28,7 @@ fn setup_simulation(mut commands: Commands) {
 
     commands
         .spawn((
-            TransformBundle::from(Transform::from_xyz(1.0, 0.0, 0.0)),
+            Transform::from_xyz(1.0, 0.0, 0.0),
             RigidBody::Dynamic,
             Collider::cuboid(0.5, 0.5, 0.5),
             ColliderDebugColor(
@@ -47,7 +47,7 @@ fn setup_simulation(mut commands: Commands) {
         .with_children(|child| {
             child
                 .spawn((
-                    TransformBundle::from(Transform::from_xyz(0.0, 5.0, 0.0)),
+                    Transform::from_xyz(0.0, 5.0, 0.0),
                     RigidBody::Dynamic,
                     Collider::cuboid(0.5, 0.5, 0.5),
                     ColliderDebugColor(
@@ -64,11 +64,11 @@ fn setup_simulation(mut commands: Commands) {
                     GravityScale(0.0),
                 ))
                 .with_children(|child| {
-                    child.spawn(Camera3dBundle {
-                        transform: Transform::from_xyz(-1.0, 10.0, 10.0)
+                    child.spawn((
+                        Camera3d::default(),
+                        Transform::from_xyz(-1.0, 10.0, 10.0)
                             .looking_at(Vec3::new(-1.0, 0.0, 0.0), Vec3::Y),
-                        ..Default::default()
-                    });
+                    ));
                 });
         });
 
@@ -76,7 +76,7 @@ fn setup_simulation(mut commands: Commands) {
     // This does the simulation correctly
 
     commands.spawn((
-        TransformBundle::from(Transform::from_xyz(-1.0, 0.0, 0.0)),
+        Transform::from_xyz(-1.0, 0.0, 0.0),
         RigidBody::Dynamic,
         Collider::cuboid(0.5, 0.5, 0.5),
         ColliderDebugColor(
@@ -94,7 +94,7 @@ fn setup_simulation(mut commands: Commands) {
     ));
 
     commands.spawn((
-        TransformBundle::from(Transform::from_xyz(-1.0, 5.0, 0.0)),
+        Transform::from_xyz(-1.0, 5.0, 0.0),
         RigidBody::Dynamic,
         Collider::cuboid(0.5, 0.5, 0.5),
         ColliderDebugColor(
