@@ -17,7 +17,7 @@ pub use rigid_body::*;
 pub use writeback::*;
 
 use crate::dynamics::{RapierRigidBodyHandle, TransformInterpolation};
-use crate::pipeline::{CollisionEvent, ContactForceEvent};
+use crate::pipeline::{CollisionMessage, ContactForceMessage};
 use crate::plugin::context::SimulationToRenderTime;
 use crate::plugin::{RapierConfiguration, TimestepMode};
 use crate::prelude::{BevyPhysicsHooks, BevyPhysicsHooksAdapter};
@@ -25,8 +25,7 @@ use bevy::ecs::system::{StaticSystemParam, SystemParamItem};
 use bevy::prelude::*;
 
 use super::context::{
-    RapierContextColliders, RapierContextJoints, RapierContextSimulation, RapierQueryPipeline,
-    RapierRigidBodySet,
+    RapierContextColliders, RapierContextJoints, RapierContextSimulation, RapierRigidBodySet,
 };
 
 /// System responsible for advancing the physics simulation, and updating the internal state
@@ -35,7 +34,6 @@ pub fn step_simulation<Hooks>(
     mut context: Query<(
         &mut RapierContextSimulation,
         &mut RapierContextColliders,
-        &mut RapierQueryPipeline,
         &mut RapierContextJoints,
         &mut RapierRigidBodySet,
         &RapierConfiguration,
@@ -44,8 +42,8 @@ pub fn step_simulation<Hooks>(
     timestep_mode: Res<TimestepMode>,
     hooks: StaticSystemParam<Hooks>,
     time: Res<Time>,
-    mut collision_events: EventWriter<CollisionEvent>,
-    mut contact_force_events: EventWriter<ContactForceEvent>,
+    mut collision_events: MessageWriter<CollisionMessage>,
+    mut contact_force_events: MessageWriter<ContactForceMessage>,
     mut interpolation_query: Query<(&RapierRigidBodyHandle, &mut TransformInterpolation)>,
 ) where
     Hooks: 'static + BevyPhysicsHooks,
@@ -56,7 +54,6 @@ pub fn step_simulation<Hooks>(
     for (
         mut context,
         mut context_colliders,
-        mut query_pipeline,
         mut joints,
         mut rigidbody_set,
         config,
@@ -82,10 +79,6 @@ pub fn step_simulation<Hooks>(
         } else {
             rigidbody_set.propagate_modified_body_positions_to_colliders(context_colliders);
         }
-
-        if config.query_pipeline_active {
-            query_pipeline.update_query_pipeline(context_colliders);
-        }
         context.send_bevy_events(&mut collision_events, &mut contact_force_events);
     }
 }
@@ -93,7 +86,7 @@ pub fn step_simulation<Hooks>(
 #[cfg(test)]
 #[allow(missing_docs)]
 pub mod tests {
-    use bevy::{ecs::event::Events, time::TimePlugin};
+    use bevy::time::TimePlugin;
     use rapier::geometry::CollisionEventFlags;
     use std::f32::consts::PI;
 
@@ -107,7 +100,7 @@ pub mod tests {
     #[test]
     fn colliding_entities_updates() {
         let mut app = App::new();
-        app.add_event::<CollisionEvent>()
+        app.add_message::<CollisionMessage>()
             .add_systems(Update, update_colliding_entities);
 
         let entity1 = app.world_mut().spawn(CollidingEntities::default()).id();
@@ -115,9 +108,9 @@ pub mod tests {
 
         let mut collision_events = app
             .world_mut()
-            .get_resource_mut::<Events<CollisionEvent>>()
+            .get_resource_mut::<Messages<CollisionMessage>>()
             .unwrap();
-        collision_events.send(CollisionEvent::Started(
+        collision_events.write(CollisionMessage::Started(
             entity1,
             entity2,
             CollisionEventFlags::SENSOR,
@@ -159,9 +152,9 @@ pub mod tests {
 
         let mut collision_events = app
             .world_mut()
-            .get_resource_mut::<Events<CollisionEvent>>()
+            .get_resource_mut::<Messages<CollisionMessage>>()
             .unwrap();
-        collision_events.send(CollisionEvent::Stopped(
+        collision_events.write(CollisionMessage::Stopped(
             entity1,
             entity2,
             CollisionEventFlags::SENSOR,
