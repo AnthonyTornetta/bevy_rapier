@@ -1,4 +1,5 @@
 use crate::math::{Rot, Vect};
+use crate::plugin::RapierContextEntityLink;
 use bevy::ecs::{query, system::SystemParam};
 use bevy::prelude::*;
 use rapier::prelude::Real;
@@ -41,6 +42,23 @@ impl<'w, 's> ReadRapierContext<'w, 's> {
             joints,
             rigidbody_set,
         })
+    }
+
+    /// Use this method if you have multiple [`RapierContext`]s
+    ///
+    /// SAFETY: This method will panic if its underlying query fails.
+    /// Use the underlying query [`ReadRapierContext::rapier_context`] for safer alternatives.
+    pub fn get(&self, link: RapierContextEntityLink) -> RapierContext<'_> {
+        let (simulation, colliders, joints, rigidbody_set) =
+            self.rapier_context.get(link.0).unwrap_or_else(|_| {
+                panic!("Unable to query rapier context components for link {link:?}")
+            });
+        RapierContext {
+            simulation,
+            colliders,
+            joints,
+            rigidbody_set,
+        }
     }
 }
 
@@ -106,6 +124,39 @@ impl<'w, 's> WriteRapierContext<'w, 's> {
             joints,
             rigidbody_set,
         })
+    }
+
+    /// Use this method if you have multiple [`RapierContext`]s
+    ///
+    /// SAFETY: This method will panic if its underlying query fails.
+    /// Use the underlying query [`WriteRapierContext::rapier_context`] for safer alternatives.
+    pub fn get(&self, link: RapierContextEntityLink) -> RapierContext<'_> {
+        let (simulation, colliders, joints, rigidbody_set) =
+            self.rapier_context.get(link.0).unwrap_or_else(|_| {
+                panic!("Unable to query rapier context components for link {link:?}")
+            });
+        RapierContext {
+            simulation,
+            colliders,
+            joints,
+            rigidbody_set,
+        }
+    }
+    /// Use this method if you have multiple [`RapierContext`]s.
+    ///
+    /// SAFETY: This method will panic if its underlying query fails.
+    /// Use the underlying query [`WriteRapierContext::rapier_context`] for safer alternatives.
+    pub fn get_mut(&mut self, link: RapierContextEntityLink) -> RapierContextMut<'_> {
+        let (simulation, colliders, joints, rigidbody_set) =
+            self.rapier_context.get_mut(link.0).unwrap_or_else(|_| {
+                panic!("Unable to query rapier context components for link {link:?}")
+            });
+        RapierContextMut {
+            simulation,
+            colliders,
+            joints,
+            rigidbody_set,
+        }
     }
 }
 
