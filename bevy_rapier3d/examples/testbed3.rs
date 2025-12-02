@@ -139,6 +139,17 @@ fn main() {
         //
         // despawn
         .init_resource::<despawn3::DespawnResource>()
+        .add_systems(PreStartup, |mut commands: Commands| {
+            commands.spawn((
+                Camera2d,
+                bevy_egui::PrimaryEguiContext,
+                Camera {
+                    order: 999,
+                    ..Default::default()
+                },
+                RenderLayers::none(),
+            ));
+        })
         .add_systems(
             OnEnter(Examples::Despawn3),
             (despawn3::setup_graphics, despawn3::setup_physics),
@@ -256,7 +267,7 @@ fn main() {
 }
 
 fn init(world: &mut World) {
-    //save all entities that are in the world before setting up any example
+    // save all entities that are in the world before setting up any example
     // to be able to always return to this state when switching from one example to the other
     world.resource_mut::<ExamplesRes>().entities_before = world
         .query::<EntityRef>()

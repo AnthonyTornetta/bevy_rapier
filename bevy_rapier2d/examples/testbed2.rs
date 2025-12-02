@@ -264,7 +264,7 @@ fn main() {
 }
 
 fn init(world: &mut World) {
-    //save all entities that are in the world before setting up any example
+    // save all entities that are in the world before setting up any example
     // to be able to always return to this state when switching from one example to the other
     world.resource_mut::<ExamplesRes>().entities_before = world
         .query::<EntityRef>()

@@ -43,7 +43,7 @@ pub fn sync_removals(
     mut removed_rigid_body_disabled: RemovedComponents<RigidBodyDisabled>,
     mut removed_colliders_disabled: RemovedComponents<ColliderDisabled>,
 
-    mut mass_modified: MessageWriter<MassModifiedMessage>,
+    mut mass_modified: MessageWriter<MassModifiedEvent>,
 ) {
     /*
      * Rigid-bodies removal detection.

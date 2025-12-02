@@ -7,13 +7,13 @@
 //! to `true` and add a [`RapierPickable`] component to the desired camera and target entities.
 
 use bevy::app::prelude::*;
-use bevy::camera::visibility::RenderLayers;
-use bevy::camera::Camera;
+use bevy::camera::visibility::{InheritedVisibility, RenderLayers};
 use bevy::ecs::prelude::*;
-use bevy::picking::backend::{ray::RayMap, HitData, PointerHits};
+use bevy::picking::backend::ray::RayMap;
+use bevy::picking::backend::HitData;
+use bevy::picking::backend::PointerHits;
 use bevy::picking::{PickingPlugin, PickingSystems};
-use bevy::prelude::{InheritedVisibility, ViewVisibility};
-use bevy::reflect::prelude::*;
+use bevy::prelude::*;
 use rapier::parry::query::DefaultQueryDispatcher;
 
 /// How a ray cast should handle [`Visibility`].

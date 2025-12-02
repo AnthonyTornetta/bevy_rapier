@@ -20,7 +20,7 @@ use rapier::prelude::{Capsule, TypedShape};
 /// Converts a [`TypedShape`] to a [`Mesh`].
 ///
 /// This expects a [`TypedShape`] to be a convertible to a bavy builtin [`bevy::prelude::Meshable`],
-/// Or builds a new Mesh with [`PrimitiveTopology::TriangleList`](bevy::render::mesh::PrimitiveTopology::TriangleList).
+/// Or builds a new Mesh with [`PrimitiveTopology::TriangleList`](bevy::mesh::PrimitiveTopology::TriangleList).
 pub fn typed_shape_to_mesh(typed_shape: &TypedShape) -> Option<Mesh> {
     Some(match typed_shape {
         TypedShape::Ball(ball) => ball.mesh_builder().build(),

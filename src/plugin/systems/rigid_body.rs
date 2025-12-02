@@ -136,7 +136,7 @@ pub fn apply_rigid_body_user_changes(
             Changed<AdditionalSolverIterations>,
         >,
     ),
-    mut mass_modified: MessageWriter<MassModifiedMessage>,
+    mut mass_modified: MessageWriter<MassModifiedEvent>,
 ) {
     // Deal with sleeping first, because other changes may then wake-up the
     // rigid-body again.

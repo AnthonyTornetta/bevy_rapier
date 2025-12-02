@@ -16,7 +16,7 @@ use rapier::prelude::{
 
 use crate::geometry::{PointProjection, RayIntersection, ShapeCastHit};
 use crate::math::{Rot, Vect};
-use crate::pipeline::{CollisionMessage, ContactForceMessage, EventQueue};
+use crate::pipeline::{CollisionEvent, ContactForceEvent, EventQueue};
 use bevy::prelude::{Entity, GlobalTransform, Query};
 
 use crate::control::{CharacterCollision, MoveShapeOptions, MoveShapeOutput};
@@ -700,8 +700,8 @@ impl RapierContextSimulation {
         gravity: Vect,
         timestep_mode: TimestepMode,
         events: Option<(
-            &MessageWriter<CollisionMessage>,
-            &MessageWriter<ContactForceMessage>,
+            &MessageWriter<CollisionEvent>,
+            &MessageWriter<ContactForceEvent>,
         )>,
         hooks: &dyn PhysicsHooks,
         time: &Time,
@@ -848,8 +848,8 @@ impl RapierContextSimulation {
     /// that are stored in the events list
     pub fn send_bevy_events(
         &mut self,
-        collision_event_writer: &mut MessageWriter<CollisionMessage>,
-        contact_force_event_writer: &mut MessageWriter<ContactForceMessage>,
+        collision_event_writer: &mut MessageWriter<CollisionEvent>,
+        contact_force_event_writer: &mut MessageWriter<ContactForceEvent>,
     ) {
         for collision_event in self.collision_events_to_send.drain(..) {
             collision_event_writer.write(collision_event);

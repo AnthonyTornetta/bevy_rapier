@@ -140,8 +140,7 @@ pub fn apply_collider_user_changes(
         (RapierEntity, &RapierColliderHandle, &ColliderMassProperties),
         Changed<ColliderMassProperties>,
     >,
-
-    mut mass_modified: MessageWriter<MassModifiedMessage>,
+    mut mass_modified: MessageWriter<MassModifiedEvent>,
 ) {
     for (rapier_entity, handle, transform) in changed_collider_transforms.iter() {
         let (rigidbody_set, mut context_colliders) = context
@@ -568,7 +567,7 @@ pub fn init_async_scene_colliders(
 /// Adds entity to [`CollidingEntities`] on starting collision and removes from it when the
 /// collision ends.
 pub fn update_colliding_entities(
-    mut collision_events: MessageReader<CollisionMessage>,
+    mut collision_events: MessageReader<CollisionEvent>,
     mut colliding_entities: Query<&mut CollidingEntities>,
 ) {
     for event in collision_events.read() {

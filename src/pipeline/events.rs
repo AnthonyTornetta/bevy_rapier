@@ -17,8 +17,8 @@ use crate::prelude::{ActiveEvents, ContactForceEventThreshold};
 ///
 /// This will only get triggered if the entity has the
 /// [`ActiveEvents::COLLISION_EVENTS`] flag enabled.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Message)]
-pub enum CollisionMessage {
+#[derive(Message, Copy, Clone, Debug, PartialEq, Eq)]
+pub enum CollisionEvent {
     /// Event occurring when two colliders start colliding
     Started(Entity, Entity, CollisionEventFlags),
     /// Event occurring when two colliders stop colliding
@@ -30,8 +30,8 @@ pub enum CollisionMessage {
 ///
 /// This will only get triggered if the entity has the
 /// [`ActiveEvents::CONTACT_FORCE_EVENTS`] flag enabled.
-#[derive(Copy, Clone, Debug, PartialEq, Message)]
-pub struct ContactForceMessage {
+#[derive(Message, Copy, Clone, Debug, PartialEq)]
+pub struct ContactForceEvent {
     /// The first collider involved in the contact.
     pub collider1: Entity,
     /// The second collider involved in the contact.
