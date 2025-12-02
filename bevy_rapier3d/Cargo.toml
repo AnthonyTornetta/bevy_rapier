@@ -67,7 +67,7 @@ to-bevy-mesh = ["bevy/bevy_render", "bevy/bevy_asset"]
 [dependencies]
 bevy = { version = "0.17.3", default-features = false, features = ["std"] }
 nalgebra = { version = "0.34.1", features = ["convert-glam030"] }
-rapier3d = "0.31.0"
+rapier3d = { git = "https://github.com/anthonyTornetta/rapier", rev = "1ee1c0f6de22c899eaa5df4a039c5c3a99132ba4" }
 bitflags = "2.10.0"
 log = "0.4"
 serde = { version = "1", features = ["derive"], optional = true }
