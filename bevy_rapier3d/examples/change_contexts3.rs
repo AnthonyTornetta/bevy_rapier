@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 const N_CONTEXTS: usize = 5;
-const WORLD_CHANGE_DELAY_SEC: f32 = 2.0;
+const WORLD_CHANGE_DELAY_SEC: f32 = 3.0;
 
 #[derive(Component)]
 /// Denotes which object(s) to change the world of
@@ -20,11 +20,11 @@ fn main() {
         )))
         .add_plugins((
             DefaultPlugins,
-            RapierPhysicsPlugin::<NoUserData>::default().in_fixed_schedule(),
+            RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin::default(),
         ))
         .add_systems(Startup, (setup_graphics, setup_physics))
-        .add_systems(FixedUpdate, change_world.before(PhysicsSet::SyncBackend))
+        .add_systems(Update, change_world)
         .run();
 }
 
@@ -65,8 +65,13 @@ pub fn setup_physics(
 
     let mut contexts = Contexts(vec![default_context]);
 
-    for _ in 1..N_CONTEXTS {
-        let config = RapierConfiguration::new(1.0);
+    for i in 1..N_CONTEXTS {
+        // Each context can have its own rapier configuration
+        let mut config = RapierConfiguration::new(1.0);
+        if i + 1 == N_CONTEXTS {
+            info!("The last context will have opposite gravity");
+            config.gravity = -config.gravity;
+        }
         let context_ent = commands
             .spawn((RapierContextSimulation::default(), config))
             .id();
@@ -119,3 +124,4 @@ pub fn setup_physics(
 
     commands.insert_resource(contexts);
 }
+
